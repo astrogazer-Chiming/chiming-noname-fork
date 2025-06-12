@@ -14300,8 +14300,10 @@ const skills = {
 			}
 			if (num > player.hp) {
 				await player.recover(num - player.hp);
-			} else if (num < player.hp) {
-				await player.loseHp(player.hp - num);
+			} else {
+				if (num < player.hp) {
+					await player.loseHp(player.hp - num);
+				}
 			}
 			const result = await player
 				.chooseToGuanxing(player.hp)
@@ -14351,7 +14353,7 @@ const skills = {
 						case "phaseJieshu":
 							target = target.next;
 						// [falls through]
-						case "phaseZhunbei": {
+						case "phaseZhunbei":
 							let att = get.sgn(get.attitude(player, target)),
 								judges = target.getCards("j"),
 								needs = 0,
@@ -14393,7 +14395,6 @@ const skills = {
 							}
 							bottom.addArray(cards);
 							return [top, bottom];
-						}
 						default:
 							cards.sort((a, b) => {
 								return get.value(b, target) - get.value(a, target);
@@ -14468,32 +14469,35 @@ const skills = {
 				player.hasCard(card => {
 					return get.name(card) == event.card.name;
 				})
-			) {
+			)
 				return true;
-			}
 			return false;
 		},
-		direct: true,
-		content() {
-			"step 0";
-			var choices = [];
-			var choiceList = ["令" + get.translation(trigger.card) + "对其中一个目标角色造成的伤害+1", "令任意名其他角色各摸一张牌", "摸三张牌，然后〖情势〗于本回合失效"];
-			if (trigger.targets && trigger.targets.length) {
-				choices.push("选项一");
-			} else {
-				choiceList[0] = '<span style="opacity:0.5">' + choiceList[0] + "(无目标角色)</span>";
+		async cost(event, trigger, player) {
+			let choices = [],
+				choiceList = [
+					"令" + get.translation(trigger.card) + "对其中一个目标角色造成的伤害+1", 
+					"令任意名其他角色各摸一张牌", 
+					"摸三张牌，然后〖情势〗于本回合失效"
+				],
+				choiceFilterList = [
+					(trigger.targets && trigger.targets.length),
+					(game.countPlayer(i => i != player)),
+					(player.hp > 0),
+				],
+				choiceBannedList = [
+					"(此牌无目标角色)",
+					"",
+					"(体力值为0)",
+				];
+			for (let index = 0; index < choiceList.length; index++) {
+				choiceFilterList[index] ? choices.push([
+					"选项一",
+					"选项二",
+					"选项三",
+				][index]) : choiceList[index] = '<span style="opacity:0.5">' + choiceList[index] + choiceBannedList[index] + '</span>';
 			}
-			if (game.countPlayer(i => i != player)) {
-				choices.push("选项二");
-			} else {
-				choiceList[1] = '<span style="opacity:0.5">' + choiceList[1] + "</span>";
-			}
-			if (player.hp > 0) {
-				choices.push("选项三");
-			} else {
-				choiceList[2] = '<span style="opacity:0.5">' + choiceList[1] + "(体力值为0)</span>";
-			}
-			player
+			const control = await player
 				.chooseControl(choices, "cancel2")
 				.set("choiceList", choiceList)
 				.set("prompt", get.prompt("dcqingshi"))
@@ -14550,84 +14554,68 @@ const skills = {
 						}
 						return "cancel2";
 					})()
-				);
-			"step 1";
-			if (result.control != "cancel2") {
-				player.logSkill("dcqingshi");
-				game.log(player, "选择了", "#y" + result.control);
-				var index = ["选项一", "选项二", "选项三"].indexOf(result.control) + 1;
-				player.addTempSkill("dcqingshi_clear");
-				player.markAuto("dcqingshi_clear", [trigger.card.name]);
-				var next = game.createEvent("dcqingshi_after");
-				next.player = player;
-				next.card = trigger.card;
-				next.setContent(lib.skill.dcqingshi["content" + index]);
+				)
+				.forResultControl();
+			if (control === "cancel2") {
+				event.result = {
+					bool: false
+				};
+			} else {
+				event.result = {
+					bool: true,
+					cost_data: control,
+				};
 			}
 		},
-		content1() {
-			"step 0";
-			player
-				.chooseTarget("令" + get.translation(card) + "对其中一个目标造成的伤害+1", true, (card, player, target) => {
-					return _status.event.targets.includes(target);
-				})
-				.set("ai", target => {
-					return 2 - get.attitude(_status.event.player, target);
-				})
-				.set("targets", event.getParent().getTrigger().targets);
-			"step 1";
-			if (result.bool) {
-				var target = result.targets[0];
-				player.line(target);
-				player.addTempSkill("dcqingshi_ex");
-				if (!player.storage.dcqingshi_ex) {
-					player.storage.dcqingshi_ex = [];
-				}
-				player.storage.dcqingshi_ex.push([target, card]);
-			}
-		},
-		content2() {
-			"step 0";
-			player.chooseTarget("令任意名其他角色各摸一张牌", [1, Infinity], true, lib.filter.notMe).set("ai", target => {
-				return get.attitude(_status.event.player, target);
-			});
-			"step 1";
-			if (result.bool) {
-				var targets = result.targets;
-				targets.sortBySeat();
-				player.line(targets);
-				game.asyncDraw(targets);
-				game.delayex();
-			}
-		},
-		content3() {
-			"step 0";
-			player.draw(3);
-			player.tempBanSkill("dcqingshi");
-		},
-		subSkill: {
-			ex: {
-				trigger: { source: "damageBegin1" },
-				filter(event, player) {
-					return (
-						player.storage.dcqingshi_ex &&
-						player.storage.dcqingshi_ex.some(info => {
-							return info[0] == event.player && info[1] == event.card;
+		async content(event, trigger, player) {
+			const control = event.cost_data,
+				index = ["选项一", "选项二", "选项三"].indexOf(control);
+			game.log(player, "选择了", "#y" + control);
+			player.addTempSkill("dcqingshi_clear");
+			player.markAuto("dcqingshi_clear", [trigger.card.name]);
+			switch (index) {
+				case 0:
+					const result = await player
+						.chooseTarget("令" + get.translation(trigger.card) + "对其中一个目标造成的伤害+1", true, (card, player, target) => {
+							return _status.event.targets.includes(target)
 						})
-					);
-				},
-				forced: true,
-				charlotte: true,
-				popup: false,
-				onremove: true,
-				content() {
-					trigger.num++;
-					for (var i = 0; i < player.storage.dcqingshi_ex.length; i++) {
-						if (player.storage.dcqingshi_ex[i][1] == trigger.card) {
-							player.storage.dcqingshi_ex.splice(i--, 1);
-						}
+						.set("ai", target => {
+							return 2 - get.attitude(_status.event.player, target)
+						})
+						.set("targets", event.getParent().getTrigger().targets)
+						.forResult();
+					let target = result.targets[0];
+					player.line(target, "fire");
+					var map = trigger.customArgs;
+					var id = target.playerid;
+					if (!map[id]) {
+						map[id] = {};
 					}
-				},
-			},
+					if (typeof map[id].extraDamage != "number") {
+						map[id].extraDamage = 0;
+					}
+					map[id].extraDamage++;
+					break;
+				case 1:
+					const targets = await player.chooseTarget("令任意名其他角色各摸一张牌", [1, Infinity], true, lib.filter.notMe)
+						.set("ai", target => {
+							return get.attitude(_status.event.player, target);
+						})
+						.forResultTargets();
+					targets.sortBySeat();
+					player.line(targets, "green");
+					await game.asyncDraw(targets);
+					if (targets.length > 1) {
+						await game.asyncDelayx();
+					}
+					break;
+				default:
+					await player.draw(3);
+					await player.tempBanSkill("dcqingshi");
+					break;
+			}
+		},
+		subSkill:{
 			clear: {
 				onremove: true,
 				charlotte: true,
@@ -14649,18 +14637,36 @@ const skills = {
 		skillAnimation: true,
 		animationColor: "metal",
 		check(card) {
-			if (get.type(card) != "basic" && get.type(card) != "trick") {
-				return 0;
-			}
+			if (get.type(card) != "basic" && get.type(card) != "trick") return 0;
 			return get.value(card) - 7.5;
 		},
-		content() {
-			"step 0";
-			var card = cards[0];
+		async content(event, trigger, player) {
 			player.awakenSkill(event.name);
-			var cardx = game.createCard2(card.name, card.suit, card.number, card.nature);
-			player.gain(cardx).gaintag.add("dczhizhe");
-			player.addSkill("dczhizhe_effect");
+			const card = event.cards[0];
+			const cardx = game.createCard2(card.name, card.suit, card.number, card.nature);
+			if (get.is.yingbian(card)) {
+				const yingbianTag = [];
+				yingbianTag.addArray(Array.from(lib.yingbian.condition.complex.keys()).filter(value => {
+					return get.cardtag(card, `yingbian_${value}`);
+				}));
+				yingbianTag.addArray(Array.from(lib.yingbian.condition.simple.keys()).filter(value => {
+					return get.cardtag(card, `yingbian_${value}`);
+				}));
+				yingbianTag.addArray(Array.from(lib.yingbian.effect.keys()).filter(value => {
+					return get.cardtag(card, `yingbian_${value}`);
+				}));
+				yingbianTag.forEach(value => cardx.addCardtag(`yingbian_${value}`));
+			}
+			if (get.cardtag(card, "gifts")) {
+				cardx.addCardtag("gifts");
+			}
+			if (get.cardtag(card, "lianheng")) {
+				cardx.addCardtag("lianheng");
+			}
+			const gainEvent = player.gain(cardx);
+			gainEvent.gaintag.add("dczhizhe");
+			await gainEvent;
+			await player.addSkill("dczhizhe_effect");
 		},
 		ai: {
 			order: 15,
@@ -14699,7 +14705,6 @@ const skills = {
 						}
 					},
 				},
-				audio: "dczhizhe",
 				trigger: { player: ["useCardAfter", "respondAfter"] },
 				charlotte: true,
 				forced: true,
@@ -14708,7 +14713,7 @@ const skills = {
 						if (evt.getParent() != event) {
 							return false;
 						}
-						for (var i in evt.gaintag_map) {
+						for (let i in evt.gaintag_map) {
 							if (evt.gaintag_map[i].includes("dczhizhe")) {
 								if (
 									event.cards.some(card => {
@@ -14722,16 +14727,13 @@ const skills = {
 						return false;
 					});
 				},
-				content() {
-					"step 0";
-					var cards = [];
+				async content(event, trigger, player) {
+					let cards = [];
 					player.getHistory("lose", function (evt) {
-						if (evt.getParent() != trigger) {
-							return false;
-						}
-						for (var i in evt.gaintag_map) {
+						if (evt.getParent() != trigger) return false;
+						for (let i in evt.gaintag_map) {
 							if (evt.gaintag_map[i].includes("dczhizhe")) {
-								var cardsx = trigger.cards.filter(card => {
+								let cardsx = trigger.cards.filter(card => {
 									return get.position(card, true) == "o" && card.cardid == i;
 								});
 								if (cardsx.length) {
@@ -14741,8 +14743,11 @@ const skills = {
 						}
 					});
 					if (cards.length) {
-						player.gain(cards, "gain2").gaintag.addArray(["dczhizhe", "dczhizhe_clear"]);
-						player.addTempSkill("dczhizhe_clear");
+						const gaintag = ["dczhizhe", "dczhizhe_clear"];
+						const gainEvent = player.gain(cards, "gain2");
+						gainEvent.gaintag.addArray(gaintag);
+						await gainEvent;
+						await player.addTempSkill("dczhizhe_clear");
 					}
 				},
 			},
@@ -14753,7 +14758,7 @@ const skills = {
 				},
 				mod: {
 					cardEnabled2(card, player) {
-						var cards = [];
+						let cards = [];
 						if (card.cards) {
 							cards.addArray(cards);
 						}
@@ -14767,7 +14772,7 @@ const skills = {
 						}
 					},
 					cardRespondable(card, player) {
-						var cards = [];
+						let cards = [];
 						if (card.cards) {
 							cards.addArray(cards);
 						}
@@ -14781,7 +14786,7 @@ const skills = {
 						}
 					},
 					cardSavable(card, player) {
-						var cards = [];
+						let cards = [];
 						if (card.cards) {
 							cards.addArray(cards);
 						}
