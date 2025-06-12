@@ -12682,13 +12682,29 @@ const skills = {
 			if (get.type(card) != "basic" && get.type(card) != "trick") return 0;
 			return get.value(card) - 7.5;
 		},
-		content() {
-			"step 0";
-			var card = cards[0];
+		async content(event, trigger, player) {
 			player.awakenSkill(event.name);
-			var cardx = game.createCard2(card.name, card.suit, card.number, card.nature);
-			player.gain(cardx).gaintag.add("dczhizhe");
-			player.addSkill("dczhizhe_effect");
+			const card = event.cards[0];
+			const cardx = game.createCard2(card.name, card.suit, card.number, card.nature);
+			if (get.is.yingbian(card)) {
+				const yingbianTag = [];
+				yingbianTag.addArray(Array.from(lib.yingbian.condition.complex.keys()).filter(value => {
+					return get.cardtag(card, `yingbian_${value}`);
+				}));
+				yingbianTag.addArray(Array.from(lib.yingbian.condition.simple.keys()).filter(value => {
+					return get.cardtag(card, `yingbian_${value}`);
+				}));
+				yingbianTag.addArray(Array.from(lib.yingbian.effect.keys()).filter(value => {
+					return get.cardtag(card, `yingbian_${value}`);
+				}));
+				yingbianTag.forEach(value => cardx.addCardtag(`yingbian_${value}`));
+			}
+			if (get.cardtag(card, "gifts")) cardx.addCardtag("gifts");
+			if (get.cardtag(card, "lianheng")) cardx.addCardtag("lianheng");
+			const gainEvent = player.gain(cardx);
+			gainEvent.gaintag.add("dczhizhe");
+			await gainEvent;
+			await player.addSkill("dczhizhe_effect");
 		},
 		ai: {
 			order: 15,
@@ -12726,7 +12742,7 @@ const skills = {
 				filter(event, player) {
 					return player.hasHistory("lose", function (evt) {
 						if (evt.getParent() != event) return false;
-						for (var i in evt.gaintag_map) {
+						for (let i in evt.gaintag_map) {
 							if (evt.gaintag_map[i].includes("dczhizhe")) {
 								if (
 									event.cards.some(card => {
@@ -12739,14 +12755,13 @@ const skills = {
 						return false;
 					});
 				},
-				content() {
-					"step 0";
-					var cards = [];
-					player.getHistory("lose", function (evt) {
+				async content(event, trigger, player) {
+					let cards = [];
+					await player.getHistory("lose", function (evt) {
 						if (evt.getParent() != trigger) return false;
-						for (var i in evt.gaintag_map) {
+						for (let i in evt.gaintag_map) {
 							if (evt.gaintag_map[i].includes("dczhizhe")) {
-								var cardsx = trigger.cards.filter(card => {
+								let cardsx = trigger.cards.filter(card => {
 									return get.position(card, true) == "o" && card.cardid == i;
 								});
 								if (cardsx.length) cards.addArray(cardsx);
@@ -12754,8 +12769,11 @@ const skills = {
 						}
 					});
 					if (cards.length) {
-						player.gain(cards, "gain2").gaintag.addArray(["dczhizhe", "dczhizhe_clear"]);
-						player.addTempSkill("dczhizhe_clear");
+						const gaintag = ["dczhizhe", "dczhizhe_clear"];
+						const gainEvent = player.gain(cards, "gain2");
+						gainEvent.gaintag.addArray(gaintag);
+						await gainEvent;
+						await player.addTempSkill("dczhizhe_clear");
 					}
 				},
 			},
