@@ -9487,8 +9487,8 @@ const skills = {
 							const {
 								result: { control },
 							} = await target
-								。chooseControl(choices)
-								。set("ai", function (event, player) {
+								.chooseControl(choices)
+								.set("ai", function (event, player) {
 									if (choices.length > 1) {
 										if (
 											player.countCards("he", { type: ["trick", "delay", "equip"] }, function (card) {
@@ -9501,7 +9501,7 @@ const skills = {
 									}
 									return 0;
 								})
-								。set("prompt", "征辟：交给" + get.translation(player) + "…</div>");
+								.set("prompt", "征辟：交给" + get.translation(player) + "…</div>");
 							const check = control == "一张非基本牌";
 							await target.chooseToGive("he", check ? 1 : 2, { type: check ? ["trick", "delay", "equip"] : "basic" }, player, true).set("prompt", "征辟：交给" + get.translation(player) + control);
 						} else if (target.countCards("h")) {
@@ -9526,9 +9526,9 @@ const skills = {
 			await player.discard(player.getCards("h"));
 			const evt = player.insertPhase();
 			player
-				。when("phaseBegin")
-				。filter(evtx => evtx == evt)
-				。then(() => {
+				.when("phaseBegin")
+				.filter(evtx => evtx == evt)
+				.then(() => {
 					if (player.isMinHp() && player.maxHp > 0 && player.countCards("h") < player.maxHp) {
 						player.drawTo(player.maxHp);
 					}
@@ -9562,7 +9562,7 @@ const skills = {
 		logTarget: "player",
 		async content(event, trigger, player) {
 			player
-				。judge(card => {
+				.judge(card => {
 					const evt = get.event().getParent(get.event("eventName")).getTrigger();
 					if (!evt.source || !evt.source.isIn() || !evt.card || typeof get.number(evt.card) !== "number") {
 						return 0;
@@ -11282,7 +11282,7 @@ const skills = {
 				var result = { bool: true, targets: targets };
 			} else {
 				var result = yield player
-					。chooseTarget([1, blackOnes.length], true, (card, player, target) => {
+					.chooseTarget([1, blackOnes.length], true, (card, player, target) => {
 						if (player == target) {
 							return false;
 						}
@@ -11297,17 +11297,17 @@ const skills = {
 						}
 						return false;
 					})
-					。set("complexSelect", true)
-					。set("complexTarget", true)
-					。set("multitarget", true)
-					。set("multiline", true)
-					。set("ai", target => {
+					.set("complexSelect", true)
+					.set("complexTarget", true)
+					.set("multitarget", true)
+					.set("multiline", true)
+					.set("ai", target => {
 						if (get.event("aiTargets").includes(target)) {
 							return 10;
 						}
 						return 0.1;
 					})
-					。set(
+					.set(
 						"aiTargets",
 						(() => {
 							const targets = game.filterPlayer(i => i != player).sortBySeat(player),
@@ -11338,7 +11338,7 @@ const skills = {
 							return aiTargets;
 						})()
 					)
-					。set("createDialog", [`###硝引：剩余的黑色牌###<div class="text center">请选择至多${get.cnNumber(blackOnes.length)}名座次连续的其他角色，然后将以下这些牌置于这些角色的武将牌上。</div>`, blackOnes]);
+					.set("createDialog", [`###硝引：剩余的黑色牌###<div class="text center">请选择至多${get.cnNumber(blackOnes.length)}名座次连续的其他角色，然后将以下这些牌置于这些角色的武将牌上。</div>`, blackOnes]);
 			}
 			if (!result.bool) {
 				event.finish();
@@ -11401,8 +11401,8 @@ const skills = {
 							.forResult();
 					} else {
 						event.result = await source
-							。chooseBool(`###是否响应${get.translation(player)}的【硝引】？###获得${get.translation(target)}的一张“硝引”牌（${get.translation(cards)}），然后将你对其造成的此次伤害改为火焰伤害。`)
-							。set(
+							.chooseBool(`###是否响应${get.translation(player)}的【硝引】？###获得${get.translation(target)}的一张“硝引”牌（${get.translation(cards)}），然后将你对其造成的此次伤害改为火焰伤害。`)
+							.set(
 								"choice",
 								(() => {
 									if (get.damageEffect(target, source, source, "fire") < get.damageEffect(target, source, source) - 5) {
@@ -11414,7 +11414,7 @@ const skills = {
 									return false;
 								})()
 							)
-							。forResult();
+							.forResult();
 					}
 				},
 				async content(event, trigger, player) {
@@ -11471,9 +11471,9 @@ const skills = {
 		precontent() {
 			event.getParent().addCount = false;
 			player
-				。when("useCardToPlayer")
-				。filter(evt => evt.card.storage && evt.card.storage.dchuahuo)
-				。then(() => {
+				.when("useCardToPlayer")
+				.filter(evt => evt.card.storage && evt.card.storage.dchuahuo)
+				.then(() => {
 					if (trigger.target.getExpansions("dcxiaoyin").length) {
 						var targets = game.filterPlayer(current => {
 							return current.getExpansions("dcxiaoyin").length;
@@ -11483,7 +11483,7 @@ const skills = {
 						event.finish();
 					}
 				})
-				。then(() => {
+				.then(() => {
 					if (result.bool) {
 						trigger.targets.length = 0;
 						trigger.getParent().triggeredTargets1.length = 0;
