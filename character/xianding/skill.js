@@ -11,16 +11,16 @@ const skills = {
 		async content(event, trigger, player) {
 			const target = event.target;
 			const result = await target
-				。chooseControl("受到伤害", "回复体力")
-				。set("prompt", "伪涕：请选择一项")
-				。set("choiceList", ["受到1点伤害，然后获得两张点数与你所有手牌均不同的牌", "回复1点体力，然后弃置两张点数不相同的牌"])
-				。set("ai", () => {
+				.chooseControl("受到伤害", "回复体力")
+				.set("prompt", "伪涕：请选择一项")
+				.set("choiceList", ["受到1点伤害，然后获得两张点数与你所有手牌均不同的牌", "回复1点体力，然后弃置两张点数不相同的牌"])
+				.set("ai", () => {
 					const player = get.player();
 					let eff1 = get.recoverEffect(player, player) - Math.min(2, player.countCards("he")),
 						eff2 = 2 + get.damageEffect(player, player);
 					return eff1 > eff2 ? "回复体力" : "受到伤害";
 				})
-				。forResult();
+				.forResult();
 			if (result.control == "受到伤害") {
 				await target.damage();
 				const nums = target.getCards("h").map(card => get.number(card, target));
