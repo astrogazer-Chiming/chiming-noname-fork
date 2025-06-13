@@ -4044,15 +4044,15 @@ const skills = {
 		},
 		async cost(event, trigger, player) {
 			const { result } = await player
-				。chooseControl(
+				.chooseControl(
 					Array.from({ length: 5 }).map((_, i) => get.cnNumber(i + 1) + "张"),
 					"cancel2"
 				)
-				。set("ai", () => {
+				.set("ai", () => {
 					return 4;
 				})
-				。set("prompt", get.prompt(event.skill))
-				。set("prompt2", "将牌堆顶至多五张牌置于武将牌上");
+				.set("prompt", get.prompt(event.skill))
+				.set("prompt2", "将牌堆顶至多五张牌置于武将牌上");
 			event.result = result;
 			event.result.bool = result.control !== "cancel2";
 			event.result.cost_data = result.index + 1;
